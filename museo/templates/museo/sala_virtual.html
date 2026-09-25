@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}Recorrido virtual · MUC{% endblock %}
+{% block body_class %}vr-page{% endblock %}
+{% block head %}
+<script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+{% endblock %}
+{% block content %}
+{{ obras_data|json_script:"obras-data" }}
+<div class="vr-wrap">
+  <a-scene id="escena" embedded renderer="colorManagement: true; antialias: true"
+           cursor="rayOrigin: mouse" raycaster="objects: .clickable"
+           vr-mode-ui="enabled: true" loading-screen="dotsColor: #b8893b; backgroundColor: #1b1714">
+    <a-assets timeout="8000">
+      {% for o in obras %}<img id="obra-{{ o.pk }}" src="{{ o.imagen.url }}" crossorigin="anonymous">{% endfor %}
+    </a-assets>
+
+    <a-sky color="#1b1714"></a-sky>
+    <a-entity light="type: ambient; color: #fff; intensity: 0.75"></a-entity>
+    <a-entity light="type: directional; color: #fff4e0; intensity: 0.55" position="2 6 4"></a-entity>
+
+    <a-entity id="sala"></a-entity>
+
+    <a-entity id="rig" position="0 0 8" limites-sala>
+      <a-entity id="camara" camera position="0 1.6 0" look-controls="pointerLockEnabled: false" wasd-controls="acceleration: 25"></a-entity>
+      <a-entity laser-controls="hand: right" raycaster="objects: .clickable; far: 12" mover-joystick></a-entity>
+      <a-entity laser-controls="hand: left" raycaster="objects: .clickable; far: 12" mover-joystick></a-entity>
+    </a-entity>
+  </a-scene>
+
+  <div class="vr-intro" id="intro">
+    <div class="vr-intro-box">
+      <p class="eyebrow">Recorrido virtual</p>
+      <h1>Sala del MUC</h1>
+      <ul>
+        <li><strong>Computadora:</strong> arrastrá con el mouse para mirar y movete con <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> o las flechas.</li>
+        <li><strong>Celular:</strong> deslizá para mirar y usá los botones para avanzar.</li>
+        <li><strong>Visor VR:</strong> tocá el botón «VR» abajo a la derecha. Movete con el joystick.</li>
+        <li>Hacé clic sobre una obra para ver su ficha.</li>
+      </ul>
+      <button class="btn btn-primary" id="entrar">Entrar a la sala</button>
+    </div>
+  </div>
+
+  <div class="vr-move" aria-label="Controles de movimiento">
+    <button data-dir="1" aria-label="Avanzar">▲</button>
+    <button data-dir="-1" aria-label="Retroceder">▼</button>
+  </div>
+
+  <aside class="vr-ficha" id="ficha" hidden>
+    <button class="visor-close" aria-label="Cerrar ficha">×</button>
+    <h2></h2><p class="autor"></p><p class="info"></p><p class="desc"></p>
+  </aside>
+</div>
+{% endblock %}
+{% block footer %}{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const obras = JSON.parse(document.getElementById('obras-data').textContent);
+  // El tamaño de la sala se adapta a la cantidad de obras para que no quede vacía.
+  const n = obras.length;
+  const [SALA, porPared] =
+    n <= 6  ? [{ ancho: 10, largo: 12, alto: 4.2 }, { lado: 2, fondo: 2, frente: 0 }] :
+    n <= 11 ? [{ ancho: 14, largo: 18, alto: 4.4 }, { lado: 3, fondo: 3, frente: 2 }] :
+              [{ ancho: 16, largo: 22, alto: 4.6 }, { lado: 4, fondo: 3, frente: 2 }];
+  const X = SALA.ancho / 2, Z = SALA.largo / 2;
+  const mover = { dir: 0 };
+
+  // Recorrido de lugares en las paredes: izquierda (de adelante hacia el fondo), fondo,
+  // derecha (del fondo hacia adelante) y pared de entrada a los costados de la puerta.
+  const repartir = (largo, k) => Array.from({ length: k }, (_, i) => -largo / 2 + largo * (i + 0.5) / k);
+  const lugares = [];
+  repartir(SALA.largo - 3, porPared.lado).reverse().forEach(z => lugares.push({ x: -X + 0.05, z, rot: 90 }));
+  repartir(SALA.ancho - 2, porPared.fondo).forEach(x => lugares.push({ x, z: -Z + 0.05, rot: 0 }));
+  repartir(SALA.largo - 3, porPared.lado).forEach(z => lugares.push({ x: X - 0.05, z, rot: -90 }));
+  if (porPared.frente) [X / 2, -X / 2].forEach(x => lugares.push({ x, z: Z - 0.05, rot: 180 }));
+  document.getElementById('rig').setAttribute('position', `0 0 ${Z - 2}`);
+
+  const el = (tag, attrs, parent) => {
+    const e = document.createElement(tag);
+    Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+
+  // Cartela con el nombre de la obra: se dibuja en un canvas para soportar tildes y ñ.
+  const cartela = o => {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 256;
+    const g = c.getContext('2d');
+    g.fillStyle = '#f7f3ea'; g.fillRect(0, 0, 512, 256);
+    g.fillStyle = '#1b1714';
+    g.font = '600 38px "Cormorant Garamond", Georgia, serif';
+    const lineas = partir(g, o.titulo, 460).slice(0, 2);
+    lineas.forEach((l, i) => g.fillText(l, 26, 62 + i * 42));
+    g.font = '500 26px Inter, sans-serif'; g.fillStyle = '#5b4a3a';
+    g.fillText(o.autor + (o.anio ? ', ' + o.anio : ''), 26, 70 + lineas.length * 42);
+    g.font = '400 22px Inter, sans-serif'; g.fillStyle = '#7b6b5a';
+    if (o.tecnica) g.fillText(o.tecnica, 26, 108 + lineas.length * 42);
+    return c.toDataURL();
+  };
+  function partir(g, txt, max) {
+    const out = []; let linea = '';
+    txt.split(' ').forEach(p => {
+      const prueba = linea ? linea + ' ' + p : p;
+      if (g.measureText(prueba).width > max && linea) { out.push(linea); linea = p; } else linea = prueba;
+    });
+    if (linea) out.push(linea);
+    return out;
+  }
+
+  function armarSala() {
+    const sala = document.getElementById('sala');
+    const piso = { color: '#8a6a4a', roughness: 0.8 };
+    el('a-plane', { rotation: '-90 0 0', width: SALA.ancho, height: SALA.largo, material: `color: ${piso.color}; roughness: ${piso.roughness}` }, sala);
+    el('a-plane', { rotation: '90 0 0', position: `0 ${SALA.alto} 0`, width: SALA.ancho, height: SALA.largo, color: '#efebe4' }, sala);
+    const pared = 'color: #ece6dc; roughness: 1';
+    el('a-plane', { position: `${-X} ${SALA.alto / 2} 0`, rotation: '0 90 0', width: SALA.largo, height: SALA.alto, material: pared }, sala);
+    el('a-plane', { position: `${X} ${SALA.alto / 2} 0`, rotation: '0 -90 0', width: SALA.largo, height: SALA.alto, material: pared }, sala);
+    el('a-plane', { position: `0 ${SALA.alto / 2} ${-Z}`, width: SALA.ancho, height: SALA.alto, material: pared }, sala);
+    el('a-plane', { position: `0 ${SALA.alto / 2} ${Z}`, rotation: '0 180 0', width: SALA.ancho, height: SALA.alto, material: pared }, sala);
+    // Zócalo
+    [[-X + 0.02, 0, 90, SALA.largo], [X - 0.02, 0, -90, SALA.largo]].forEach(([x, z, r, w]) =>
+      el('a-plane', { position: `${x} 0.08 ${z}`, rotation: `0 ${r} 0`, width: w, height: 0.16, color: '#3a2c20' }, sala));
+    el('a-plane', { position: `0 0.08 ${-Z + 0.02}`, width: SALA.ancho, height: 0.16, color: '#3a2c20' }, sala);
+    // Banco central
+    el('a-box', { position: '0 0.23 0', width: 2.6, height: 0.46, depth: 0.6, color: '#3a2c20' }, sala);
+    // Cartel de bienvenida sobre el fondo
+    el('a-entity', { position: `0 ${SALA.alto - 0.7} ${-Z + 0.06}`, text: `value: MUSEO UNIVERSITARIO DE LA CULTURA; align: center; color: #6d1f2e; width: ${Math.min(9, SALA.ancho * 0.6)}; letterSpacing: 4` }, sala);
+
+    if (!n) return;
+    const cant = Math.min(n, lugares.length);
+    for (let k = 0; k < cant; k++) {
+      const o = obras[k];
+      const l = lugares[Math.floor(k * lugares.length / cant)];
+      const aspecto = o.ancho / o.alto;
+      let h = 1.6, w = h * aspecto;
+      if (w > 2.4) { w = 2.4; h = w / aspecto; }
+      const cuadro = el('a-entity', { position: `${l.x} 1.85 ${l.z}`, rotation: `0 ${l.rot} 0` }, sala);
+      el('a-box', { width: w + 0.16, height: h + 0.16, depth: 0.06, position: '0 0 0.03', material: 'color: #2a1f16; roughness: 0.5; metalness: 0.2' }, cuadro);
+      const img = el('a-plane', { width: w, height: h, position: '0 0 0.065', material: `shader: flat; src: #obra-${o.id}`, class: 'clickable', 'data-idx': k }, cuadro);
+      img.addEventListener('click', () => mostrarFicha(o));
+      img.addEventListener('mouseenter', () => img.setAttribute('scale', '1.02 1.02 1'));
+      img.addEventListener('mouseleave', () => img.setAttribute('scale', '1 1 1'));
+      el('a-plane', { width: 0.56, height: 0.28, position: `${w / 2 + 0.45} ${-h / 2 + 0.1} 0.012`, material: `shader: flat; src: url(${cartela(o)})`, class: 'clickable' }, cuadro)
+        .addEventListener('click', () => mostrarFicha(o));
+      // Luz cálida de acento sobre cada obra
+      el('a-entity', { position: `0 ${h / 2 + 0.9} 1.2`, light: 'type: point; color: #ffe6c0; intensity: 0.35; distance: 3.2; decay: 2' }, cuadro);
+    }
+  }
+
+  const ficha = document.getElementById('ficha');
+  function mostrarFicha(o) {
+    ficha.querySelector('h2').textContent = o.titulo;
+    ficha.querySelector('.autor').textContent = o.autor + (o.anio ? ', ' + o.anio : '');
+    ficha.querySelector('.info').textContent = [o.tecnica, o.dimensiones].filter(Boolean).join(' · ');
+    ficha.querySelector('.desc').textContent = o.descripcion;
+    ficha.hidden = false;
+  }
+  ficha.querySelector('button').onclick = () => { ficha.hidden = true; };
+
+  // Movimiento con joystick (visor VR) y con los botones en pantalla (celular).
+  AFRAME.registerComponent('mover-joystick', {
+    init() { this.el.addEventListener('thumbstickmoved', e => { mover.dir = Math.abs(e.detail.y) > 0.2 ? -e.detail.y : 0; }); }
+  });
+  AFRAME.registerComponent('limites-sala', {
+    tick(t, dt) {
+      const cam = document.getElementById('camara').object3D;
+      const rig = this.el.object3D;
+      if (mover.dir && dt) {
+        const dirVista = new THREE.Vector3();
+        cam.getWorldDirection(dirVista);
+        dirVista.y = 0; dirVista.normalize();
+        rig.position.addScaledVector(dirVista, -mover.dir * 2.2 * dt / 1000);
+      }
+      // Mantener al visitante dentro de la sala (con un margen para no atravesar las obras)
+      const m = 0.7;
+      const px = rig.position.x + cam.position.x, pz = rig.position.z + cam.position.z;
+      const cx = Math.max(-X + m, Math.min(X - m, px)), cz = Math.max(-Z + m, Math.min(Z - m, pz));
+      cam.position.x += cx - px; cam.position.z += cz - pz;
+    }
+  });
+  document.querySelectorAll('.vr-move button').forEach(b => {
+    const on = e => { e.preventDefault(); mover.dir = +b.dataset.dir; };
+    const off = () => { mover.dir = 0; };
+    b.addEventListener('pointerdown', on);
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, off));
+  });
+
+  document.getElementById('entrar').onclick = () => { document.getElementById('intro').hidden = true; };
+
+  const escena = document.getElementById('escena');
+  const iniciar = () => document.fonts.ready.then(armarSala);
+  escena.hasLoaded ? iniciar() : escena.addEventListener('loaded', iniciar);
+})();
+</script>
+{% endblock %}

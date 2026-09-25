@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}{{ p.titulo }} · MUC{% endblock %}
+{% block content %}
+<article class="detail">
+  <a class="back" href="{% url 'museo:presentaciones' %}">← Presentaciones</a>
+  <span class="tag">{{ p.get_tipo_display }}</span>
+  <h1>{{ p.titulo }}</h1>
+  <p class="lead">{{ p.resumen }}</p>
+  <dl class="meta">
+    <div><dt>Fecha</dt><dd>{{ p.fecha_inicio|date:"j \d\e F \d\e Y" }}{% if p.fecha_fin and p.fecha_fin != p.fecha_inicio %} al {{ p.fecha_fin|date:"j \d\e F \d\e Y" }}{% endif %}</dd></div>
+    {% if p.horario %}<div><dt>Horario</dt><dd>{{ p.horario }}</dd></div>{% endif %}
+    <div><dt>Lugar</dt><dd>{{ p.lugar }}</dd></div>
+  </dl>
+  {% if p.imagen %}<img class="detail-img" src="{{ p.imagen.url }}" alt="">{% endif %}
+  <div class="prose">{{ p.descripcion|linebreaks }}</div>
+</article>
+{% endblock %}

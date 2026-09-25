@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block body_class %}home{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="hero-slides">
+    {% for f in fotos %}
+      <div class="hero-slide{% if forloop.first %} is-active{% endif %}" style="background-image:url('{{ f.imagen.url }}'); background-position: {{ f.enfoque }}" role="img" aria-label="{{ f.titulo }}"></div>
+    {% empty %}
+      <div class="hero-slide is-active hero-fallback"></div>
+    {% endfor %}
+  </div>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <p class="eyebrow">Universidad Católica de Santiago del Estero</p>
+    <h1>Museo Universitario<br>de la Cultura</h1>
+    <p class="hero-lead">Un espacio para descubrir el arte, la historia y la identidad de nuestra región. Visitanos en el campus o recorré nuestras salas desde donde estés.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="{% url 'museo:sala_virtual' %}">Comenzar recorrido virtual</a>
+      <a class="btn btn-ghost" href="{% url 'museo:presentaciones' %}">Ver presentaciones</a>
+    </div>
+  </div>
+  {% if fotos|length > 1 %}
+  <div class="hero-dots">{% for f in fotos %}<button aria-label="Foto {{ forloop.counter }}" class="{% if forloop.first %}is-active{% endif %}"></button>{% endfor %}</div>
+  {% endif %}
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <p class="eyebrow">Agenda</p>
+    <h2>Próximas presentaciones</h2>
+  </div>
+  {% if proximas %}
+  <div class="cards">
+    {% for p in proximas %}{% include 'museo/_card_presentacion.html' %}{% endfor %}
+  </div>
+  {% else %}
+  <p class="empty">Pronto anunciaremos nuevas presentaciones.</p>
+  {% endif %}
+  <p class="section-link"><a href="{% url 'museo:presentaciones' %}">Ver todas las presentaciones →</a></p>
+</section>
+
+<section class="section visita">
+  <img src="{% static 'img/entrada-biblioteca.jpg' %}" alt="Entrada de la Biblioteca Central Dr. Orestes Di Lullo, donde funciona el MUC" loading="lazy">
+  <div>
+    <p class="eyebrow">Cómo llegar</p>
+    <h2>Te esperamos en el campus</h2>
+    <p>El MUC funciona en el edificio de la <strong>Biblioteca Central «Dr. Orestes Di Lullo»</strong> de la Universidad Católica de Santiago del Estero. La entrada es libre y gratuita.</p>
+    <a class="btn btn-outline" href="{% url 'museo:galeria' %}">Conocé las obras</a>
+  </div>
+</section>
+
+<section class="section section-dark">
+  <div class="vr-teaser">
+    <div>
+      <p class="eyebrow">Recorrido virtual</p>
+      <h2>El museo, en tu pantalla</h2>
+      <p>Caminá por nuestra sala virtual y acercate a cada obra. Funciona desde la computadora, el celular o con un visor de realidad virtual.</p>
+      <a class="btn btn-primary" href="{% url 'museo:sala_virtual' %}">Entrar a la sala</a>
+    </div>
+    <div class="teaser-grid">
+      {% for o in destacadas %}<img src="{{ o.imagen.url }}" alt="{{ o.titulo }}, de {{ o.autor }}" loading="lazy">{% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    const slides = document.querySelectorAll('.hero-slide');
+    const dots = document.querySelectorAll('.hero-dots button');
+    if (slides.length < 2) return;
+    let i = 0, timer;
+    const go = n => {
+      slides[i].classList.remove('is-active'); dots[i].classList.remove('is-active');
+      i = (n + slides.length) % slides.length;
+      slides[i].classList.add('is-active'); dots[i].classList.add('is-active');
+    };
+    const start = () => { clearInterval(timer); timer = setInterval(() => go(i + 1), 6000); };
+    dots.forEach((d, n) => d.addEventListener('click', () => { go(n); start(); }));
+    start();
+  })();
+</script>
+{% endblock %}

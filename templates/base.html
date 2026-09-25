@@ -1,0 +1,62 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}MUC · Museo Universitario de la Cultura{% endblock %}</title>
+  <meta name="description" content="Museo Universitario de la Cultura de la Universidad Católica de Santiago del Estero.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/muc.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <header class="site-header" id="header">
+    <a class="brand" href="{% url 'museo:inicio' %}">
+      <span class="brand-mark">muc</span>
+      <span class="brand-text">Museo Universitario<br>de la Cultura</span>
+    </a>
+    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false" onclick="this.setAttribute('aria-expanded', document.body.classList.toggle('nav-open'))">
+      <span></span><span></span><span></span>
+    </button>
+    {% with n=request.resolver_match.url_name %}
+    <nav class="main-nav">
+      <a href="{% url 'museo:inicio' %}" class="{% if n == 'inicio' %}active{% endif %}">Inicio</a>
+      <a href="{% url 'museo:presentaciones' %}" class="{% if n == 'presentaciones' or n == 'presentacion_detalle' %}active{% endif %}">Presentaciones</a>
+      <a href="{% url 'museo:galeria' %}" class="{% if n == 'galeria' %}active{% endif %}">Obras</a>
+      <a href="{% url 'museo:sala_virtual' %}" class="btn-vr {% if n == 'sala_virtual' %}active{% endif %}">Recorrido virtual</a>
+    </nav>
+    {% endwith %}
+  </header>
+
+  <main>{% block content %}{% endblock %}</main>
+
+  {% block footer %}
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div>
+        <p class="brand-mark">muc</p>
+        <p>Museo Universitario de la Cultura<br>Universidad Católica de Santiago del Estero</p>
+      </div>
+      <div>
+        <h4>Visitanos</h4>
+        <p>Biblioteca Central «Dr. Orestes Di Lullo»<br>Campus UCSE · Santiago del Estero<br>Entrada libre y gratuita</p>
+      </div>
+      <div>
+        <h4>Explorá</h4>
+        <p><a href="{% url 'museo:presentaciones' %}">Presentaciones</a><br>
+           <a href="{% url 'museo:galeria' %}">Obras</a><br>
+           <a href="{% url 'museo:sala_virtual' %}">Recorrido virtual</a></p>
+      </div>
+    </div>
+  </footer>
+  {% endblock %}
+  <script>
+    const h = document.getElementById('header');
+    const onScroll = () => h.classList.toggle('scrolled', window.scrollY > 40);
+    window.addEventListener('scroll', onScroll); onScroll();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

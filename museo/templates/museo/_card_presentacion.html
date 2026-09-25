@@ -1,0 +1,9 @@
+<a class="card" href="{% url 'museo:presentacion_detalle' p.pk %}">
+  <div class="card-img">{% if p.imagen %}<img src="{{ p.imagen.url }}" alt="" loading="lazy">{% endif %}</div>
+  <div class="card-body">
+    <span class="tag">{{ p.get_tipo_display }}</span>
+    <h3>{{ p.titulo }}</h3>
+    <p class="card-date">{{ p.fecha_inicio|date:"j \d\e F" }}{% if p.fecha_fin and p.fecha_fin != p.fecha_inicio %} al {{ p.fecha_fin|date:"j \d\e F Y" }}{% else %} {{ p.fecha_inicio|date:"Y" }}{% endif %}</p>
+    <p>{{ p.resumen }}</p>
+  </div>
+</a>

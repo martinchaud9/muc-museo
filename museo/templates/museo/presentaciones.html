@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Presentaciones · MUC{% endblock %}
+{% block content %}
+<section class="page-head">
+  <p class="eyebrow">Agenda del museo</p>
+  <h1>Presentaciones</h1>
+  <p>Exposiciones, muestras temporales, charlas y talleres abiertos a toda la comunidad.</p>
+</section>
+<section class="section">
+  <h2 class="subhead">En cartel y próximas</h2>
+  {% if vigentes %}
+  <div class="cards">{% for p in vigentes %}{% include 'museo/_card_presentacion.html' %}{% endfor %}</div>
+  {% else %}<p class="empty">No hay presentaciones programadas por ahora.</p>{% endif %}
+</section>
+{% if pasadas %}
+<section class="section">
+  <h2 class="subhead">Presentaciones anteriores</h2>
+  <div class="cards cards-muted">{% for p in pasadas %}{% include 'museo/_card_presentacion.html' %}{% endfor %}</div>
+</section>
+{% endif %}
+{% endblock %}

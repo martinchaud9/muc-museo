@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Obras · MUC{% endblock %}
+{% block content %}
+<section class="page-head">
+  <p class="eyebrow">Acervo</p>
+  <h1>Obras</h1>
+  <p>Conocé las obras que forman parte de la colección del museo. Tocá una obra para verla en detalle, o recorré la sala en 3D.</p>
+  <a class="btn btn-primary" href="{% url 'museo:sala_virtual' %}">Recorrido virtual</a>
+</section>
+<section class="section">
+  <div class="gallery">
+    {% for o in obras %}
+    <figure class="obra" tabindex="0" data-titulo="{{ o.titulo }}" data-autor="{{ o.autor }}" data-info="{{ o.anio }}{% if o.tecnica %} · {{ o.tecnica }}{% endif %}{% if o.dimensiones %} · {{ o.dimensiones }}{% endif %}" data-desc="{{ o.descripcion }}" data-img="{{ o.imagen.url }}">
+      <img src="{{ o.imagen.url }}" alt="{{ o.titulo }}, de {{ o.autor }}" loading="lazy">
+      <figcaption><strong>{{ o.titulo }}</strong><span>{{ o.autor }}{% if o.anio %}, {{ o.anio }}{% endif %}</span></figcaption>
+    </figure>
+    {% empty %}<p class="empty">Todavía no hay obras cargadas.</p>{% endfor %}
+  </div>
+</section>
+<dialog id="visor" class="visor">
+  <button class="visor-close" aria-label="Cerrar">×</button>
+  <img alt="">
+  <div class="visor-info"><h2></h2><p class="autor"></p><p class="info"></p><p class="desc"></p></div>
+</dialog>
+{% endblock %}
+{% block scripts %}
+<script>
+  const visor = document.getElementById('visor');
+  const abrir = el => {
+    visor.querySelector('img').src = el.dataset.img;
+    visor.querySelector('img').alt = el.dataset.titulo;
+    visor.querySelector('h2').textContent = el.dataset.titulo;
+    visor.querySelector('.autor').textContent = el.dataset.autor;
+    visor.querySelector('.info').textContent = el.dataset.info;
+    visor.querySelector('.desc').textContent = el.dataset.desc;
+    visor.showModal();
+  };
+  document.querySelectorAll('.obra').forEach(el => {
+    el.addEventListener('click', () => abrir(el));
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') abrir(el); });
+  });
+  visor.querySelector('.visor-close').onclick = () => visor.close();
+  visor.addEventListener('click', e => { if (e.target === visor) visor.close(); });
+</script>
+{% endblock %}
