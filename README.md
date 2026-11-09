@@ -11,6 +11,8 @@ El repositorio **ya incluye la base de datos y las imágenes** con los datos de 
 
 - Python 3.10 o superior: https://www.python.org/downloads/
   (en Windows, al instalar, tildar **"Add Python to PATH"**).
+- En Mac, el `python3` que viene con el sistema suele ser 3.9 y **no sirve**: instalar uno nuevo desde python.org
+  y verificar con `python3 --version`.
 
 ## Cómo abrirlo
 
