@@ -9,14 +9,28 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/muc.css' %}">
+  <script src="{% static 'js/accesibilidad.js' %}"></script>
+  <script src="{% static 'js/analitica.js' %}" data-url="{% url 'analitica:evento' %}"></script>
   {% block head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
   <header class="site-header" id="header">
     <a class="brand" href="{% url 'museo:inicio' %}">
       <span class="brand-mark">muc</span>
       <span class="brand-text">Museo Universitario<br>de la Cultura</span>
     </a>
+    <button class="a11y-boton" id="a11y-boton" aria-expanded="false" aria-controls="a11y-panel">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="4" r="2"/><path d="M4 8.2c2.6.7 5.3 1 8 1s5.4-.3 8-1l.5 1.9c-1.800.5-3.6.8-5.500 1V14l2.400 7.300-1.9.6L13 15.500h-2l-2.500 6.400-1.9-.6L9 14v-2.900c-1.9-.2-3.700-.5-5.500-1z"/></svg>
+      <span>Accesibilidad</span>
+    </button>
+    <div class="a11y-panel" id="a11y-panel" role="group" aria-label="Opciones de accesibilidad" hidden>
+      <p class="a11y-titulo">Opciones de accesibilidad</p>
+      <label><input type="checkbox" data-opcion="texto-grande"> <span><strong>Texto más grande</strong><small>Aumenta el tamaño de la letra</small></span></label>
+      <label><input type="checkbox" data-opcion="alto-contraste"> <span><strong>Alto contraste</strong><small>Fondo negro, texto blanco y amarillo</small></span></label>
+      <label><input type="checkbox" data-opcion="daltonismo"> <span><strong>Colores para daltonismo</strong><small>Paleta azul y naranja; los enlaces y estados no dependen solo del color</small></span></label>
+      <label><input type="checkbox" data-opcion="sin-animaciones"> <span><strong>Sin animaciones</strong><small>Detiene el carrusel y las transiciones</small></span></label>
+    </div>
     <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false" onclick="this.setAttribute('aria-expanded', document.body.classList.toggle('nav-open'))">
       <span></span><span></span><span></span>
     </button>
@@ -30,7 +44,7 @@
     {% endwith %}
   </header>
 
-  <main>{% block content %}{% endblock %}</main>
+  <main id="contenido">{% block content %}{% endblock %}</main>
 
   {% block footer %}
   <footer class="site-footer">

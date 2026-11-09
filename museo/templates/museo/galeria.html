@@ -10,7 +10,7 @@
 <section class="section">
   <div class="gallery">
     {% for o in obras %}
-    <figure class="obra" tabindex="0" data-titulo="{{ o.titulo }}" data-autor="{{ o.autor }}" data-info="{{ o.anio }}{% if o.tecnica %} · {{ o.tecnica }}{% endif %}{% if o.dimensiones %} · {{ o.dimensiones }}{% endif %}" data-desc="{{ o.descripcion }}" data-img="{{ o.imagen.url }}">
+    <figure class="obra" tabindex="0" role="button" aria-label="Ver ficha de {{ o.titulo }}, de {{ o.autor }}" data-titulo="{{ o.titulo }}" data-autor="{{ o.autor }}" data-info="{{ o.anio }}{% if o.tecnica %} · {{ o.tecnica }}{% endif %}{% if o.dimensiones %} · {{ o.dimensiones }}{% endif %}" data-desc="{{ o.descripcion }}" data-img="{{ o.imagen.url }}" data-id="{{ o.pk }}">
       <img src="{{ o.imagen.url }}" alt="{{ o.titulo }}, de {{ o.autor }}" loading="lazy">
       <figcaption><strong>{{ o.titulo }}</strong><span>{{ o.autor }}{% if o.anio %}, {{ o.anio }}{% endif %}</span></figcaption>
     </figure>
@@ -20,7 +20,8 @@
 <dialog id="visor" class="visor">
   <button class="visor-close" aria-label="Cerrar">×</button>
   <img alt="">
-  <div class="visor-info"><h2></h2><p class="autor"></p><p class="info"></p><p class="desc"></p></div>
+  <div class="visor-info"><h2></h2><p class="autor"></p><p class="info"></p><p class="desc"></p>
+    <button class="btn btn-outline btn-leer" type="button"></button></div>
 </dialog>
 {% endblock %}
 {% block scripts %}
@@ -33,8 +34,13 @@
     visor.querySelector('.autor').textContent = el.dataset.autor;
     visor.querySelector('.info').textContent = el.dataset.info;
     visor.querySelector('.desc').textContent = el.dataset.desc;
+    MUC.registrar('obra', { objeto_id: +el.dataset.id, detalle: 'galeria' });
+    actual = { id: +el.dataset.id, titulo: el.dataset.titulo, autor: el.dataset.autor, tecnica: el.dataset.info, descripcion: el.dataset.desc };
     visor.showModal();
   };
+  let actual = null;
+  const reposo = MUC.botonLectura(visor.querySelector('.btn-leer'), () => MUC.textoObra(actual), () => ({ objeto_id: actual.id }));
+  visor.addEventListener('close', () => { MUC.callar(); if (reposo) reposo(); });
   document.querySelectorAll('.obra').forEach(el => {
     el.addEventListener('click', () => abrir(el));
     el.addEventListener('keydown', e => { if (e.key === 'Enter') abrir(el); });

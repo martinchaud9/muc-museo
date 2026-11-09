@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-ldal#a#w6famv2*qp+clm&e7a3)=)0e20nz%7&3**2eez*3i$m
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']  # desarrollo: permite abrirlo desde celulares en la misma red
 
 
 # Application definition
@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'museo',
+    'analitica',
 ]
 
 MIDDLEWARE = [

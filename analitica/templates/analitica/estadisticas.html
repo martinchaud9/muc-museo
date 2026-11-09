@@ -1,0 +1,159 @@
+{% extends "admin/base_site.html" %}
+{% load l10n %}
+{% block extrastyle %}{{ block.super }}
+<style>
+  :root { --st-barra: #2f6fa8; --st-pista: rgba(127,127,127,.12); --st-grilla: rgba(127,127,127,.22); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --st-barra: #79b0e0; } }
+  :root[data-theme="dark"] { --st-barra: #79b0e0; }
+
+  .st { max-width: 1100px; }
+  .st-filtros { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin: .4rem 0 1.4rem; }
+  .st-filtros a { padding: .35rem .8rem; border: 1px solid var(--hairline-color); border-radius: 4px; text-decoration: none; }
+  .st-filtros a[aria-current="true"] { background: var(--body-fg); color: var(--body-bg); border-color: var(--body-fg); }
+  .st-filtros span { color: var(--body-quiet-color); margin-left: .5rem; }
+  .st-aviso { border-left: 4px solid #c98a00; background: var(--darkened-bg); padding: .7rem 1rem; margin-bottom: 1.4rem; }
+
+  .st-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 1.6rem; }
+  .st-tile { border: 1px solid var(--hairline-color); border-radius: 6px; padding: .9rem 1rem; }
+  .st-tile .num { font-size: 1.9rem; font-weight: 700; line-height: 1.1; color: var(--body-fg); font-variant-numeric: tabular-nums; }
+  .st-tile .lbl { color: var(--body-quiet-color); font-size: .85rem; margin-top: .2rem; }
+
+  .st-panel { border: 1px solid var(--hairline-color); border-radius: 6px; padding: 1rem 1.2rem 1.2rem; margin-bottom: 1.4rem; }
+  .st-panel h2 { margin: 0 0 .2rem; font-size: 1.1rem; background: none; color: var(--body-fg); padding: 0; text-transform: none; letter-spacing: 0; }
+  .st-panel .sub { color: var(--body-quiet-color); margin: 0 0 1rem; font-size: .85rem; }
+  .st-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 0 1.4rem; }
+
+  /* Gráfico de columnas: visitantes únicos por día */
+  .st-cols { position: relative; display: flex; align-items: flex-end; gap: 2px; height: 180px; padding-top: 4px;
+             border-bottom: 1px solid var(--st-grilla);
+             background: linear-gradient(to top, var(--st-grilla) 1px, transparent 1px) 0 0 / 100% 25%; }
+  .st-col { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; cursor: default; outline-offset: 2px; }
+  .st-col i { display: block; width: 100%; min-height: 1px; background: var(--st-barra); border-radius: 4px 4px 0 0; }
+  .st-col:hover i, .st-col:focus i { filter: brightness(1.2); }
+  .st-col .tip { display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 2;
+                 white-space: nowrap; background: var(--body-fg); color: var(--body-bg); padding: .35rem .6rem; border-radius: 4px; font-size: .8rem; }
+  .st-col:hover .tip, .st-col:focus .tip { display: block; }
+  .st-ejex { display: flex; gap: 2px; margin-top: 4px; font-size: .72rem; color: var(--body-quiet-color); }
+  .st-ejex span { flex: 1; white-space: nowrap; overflow: visible; }
+  .st-ejey { display: flex; justify-content: space-between; font-size: .72rem; color: var(--body-quiet-color); margin-bottom: 4px; }
+
+  /* Barras horizontales con el valor al lado */
+  table.st-barras { width: 100%; border-collapse: collapse; }
+  table.st-barras th, table.st-barras td { border: 0; padding: .32rem .4rem; vertical-align: middle; font-size: .88rem; background: none; }
+  table.st-barras thead th { color: var(--body-quiet-color); font-weight: 500; font-size: .78rem; text-transform: none; border-bottom: 1px solid var(--hairline-color); }
+  table.st-barras td.nombre { width: 38%; color: var(--body-fg); }
+  table.st-barras td.barra { width: 42%; }
+  table.st-barras td.barra div { height: 12px; background: var(--st-pista); border-radius: 0 4px 4px 0; }
+  table.st-barras td.barra b { display: block; height: 100%; background: var(--st-barra); border-radius: 0 4px 4px 0; }
+  table.st-barras td.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--body-fg); white-space: nowrap; }
+  table.st-barras td.num small { color: var(--body-quiet-color); }
+  .st-vacio { color: var(--body-quiet-color); font-style: italic; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Inicio</a> › Estadísticas del sitio</div>
+{% endblock %}
+
+{% block content %}
+<div class="st">
+  <nav class="st-filtros" aria-label="Período">
+    <a href="?dias=7" {% if dias == 7 %}aria-current="true"{% endif %}>Últimos 7 días</a>
+    <a href="?dias=30" {% if dias == 30 %}aria-current="true"{% endif %}>Últimos 30 días</a>
+    <a href="?dias=90" {% if dias == 90 %}aria-current="true"{% endif %}>Últimos 90 días</a>
+    <span>{{ desde|date:"j/m/Y" }} – {{ hasta|date:"j/m/Y" }}</span>
+  </nav>
+
+  {% if hay_demo %}
+  <p class="st-aviso"><strong>Atención:</strong> la base contiene datos de demostración generados con <code>seed_analitica</code>
+  (visitantes «demo-…»). Para ver solo visitas reales, borralos con <code>python manage.py seed_analitica --borrar</code>.</p>
+  {% endif %}
+
+  <div class="st-tiles">
+    <div class="st-tile"><div class="num">{{ resumen.visitantes }}</div><div class="lbl">Visitantes únicos</div></div>
+    <div class="st-tile"><div class="num">{{ resumen.visitas }}</div><div class="lbl">Páginas vistas</div></div>
+    <div class="st-tile"><div class="num">{{ resumen.sesiones }}</div><div class="lbl">Sesiones (visitas al sitio)</div></div>
+    <div class="st-tile"><div class="num">{{ sala.recorridos }}</div><div class="lbl">Recorridos virtuales ({{ sala.pct_sesiones }}% de las sesiones)</div></div>
+    <div class="st-tile"><div class="num">{{ accesibilidad.pct }}%</div><div class="lbl">Visitantes que usaron funciones de accesibilidad</div></div>
+  </div>
+
+  <section class="st-panel" aria-labelledby="t-dia">
+    <h2 id="t-dia">Visitantes únicos por día</h2>
+    <p class="sub">Pasá el mouse (o el foco del teclado) sobre una columna para ver el detalle del día.</p>
+    {% if max_dia %}
+    <div class="st-ejey" aria-hidden="true"><span>Máx. {{ max_dia }}</span><span></span></div>
+    <div class="st-cols" role="img" aria-label="Gráfico de visitantes únicos por día; los datos están en la tabla siguiente.">
+      {% for s in serie %}
+      <div class="st-col" tabindex="0"><i style="height: {{ s.alto|unlocalize }}%"></i>
+        <span class="tip">{{ s.dia|date:"D j/m" }} · {{ s.visitantes }} visitantes · {{ s.visitas }} páginas</span></div>
+      {% endfor %}
+    </div>
+    <div class="st-ejex" aria-hidden="true">
+      {% for s in serie %}<span>{% if forloop.counter0|divisibleby:paso_etiqueta %}{{ s.dia|date:"j/m" }}{% endif %}</span>{% endfor %}
+    </div>
+    <table class="sr-only"><caption>Visitantes y páginas vistas por día</caption>
+      <tr><th>Día</th><th>Visitantes</th><th>Páginas</th></tr>
+      {% for s in serie %}<tr><td>{{ s.dia|date:"j/m/Y" }}</td><td>{{ s.visitantes }}</td><td>{{ s.visitas }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<p class="st-vacio">Todavía no hay visitas en este período.</p>{% endif %}
+  </section>
+
+  <div class="st-grid">
+    <section class="st-panel" aria-labelledby="t-origen">
+      <h2 id="t-origen">¿De dónde llegan?</h2>
+      <p class="sub">Sesiones según el origen. Los links con <code>?origen=…</code> (QR, publicaciones) se identifican por su etiqueta.</p>
+      {% if origenes %}
+      <table class="st-barras"><thead><tr><th>Origen</th><th><span class="sr-only">Proporción</span></th><th style="text-align:right">Sesiones</th></tr></thead><tbody>
+        {% for o in origenes %}<tr><td class="nombre">{{ o.nombre }}</td><td class="barra"><div><b style="width: {{ o.ancho|unlocalize }}%"></b></div></td>
+          <td class="num">{{ o.sesiones }} <small>({{ o.pct }}%)</small></td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<p class="st-vacio">Sin datos.</p>{% endif %}
+    </section>
+
+    <section class="st-panel" aria-labelledby="t-sala">
+      <h2 id="t-sala">Uso del recorrido virtual</h2>
+      <p class="sub">Calculado sobre las sesiones que entraron a la sala.</p>
+      <table class="st-barras"><tbody>
+        <tr><td class="nombre">Recorridos realizados</td><td class="num">{{ sala.recorridos }}</td></tr>
+        <tr><td class="nombre">Tiempo promedio en la sala</td><td class="num">{{ sala.tiempo_medio }} min</td></tr>
+        <tr><td class="nombre">Tiempo típico (mediana)</td><td class="num">{{ sala.tiempo_mediana }} min</td></tr>
+        <tr><td class="nombre">Obras vistas por recorrido (promedio)</td><td class="num">{{ sala.obras_medio }}</td></tr>
+      </tbody></table>
+    </section>
+
+    <section class="st-panel" aria-labelledby="t-obras">
+      <h2 id="t-obras">Obras más vistas</h2>
+      <p class="sub">Fichas abiertas en la galería y en la sala virtual.</p>
+      {% if obras %}
+      <table class="st-barras"><thead><tr><th>Obra</th><th><span class="sr-only">Proporción</span></th><th style="text-align:right">Vistas · visitantes</th></tr></thead><tbody>
+        {% for o in obras %}<tr><td class="nombre">{{ o.nombre }}</td><td class="barra"><div><b style="width: {{ o.ancho|unlocalize }}%"></b></div></td>
+          <td class="num">{{ o.vistas }} <small>· {{ o.visitantes }}</small></td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<p class="st-vacio">Sin datos.</p>{% endif %}
+    </section>
+
+    <section class="st-panel" aria-labelledby="t-pres">
+      <h2 id="t-pres">Presentaciones más consultadas</h2>
+      <p class="sub">Aperturas de la página de cada presentación.</p>
+      {% if presentaciones %}
+      <table class="st-barras"><thead><tr><th>Presentación</th><th><span class="sr-only">Proporción</span></th><th style="text-align:right">Vistas · visitantes</th></tr></thead><tbody>
+        {% for p in presentaciones %}<tr><td class="nombre">{{ p.nombre }}</td><td class="barra"><div><b style="width: {{ p.ancho|unlocalize }}%"></b></div></td>
+          <td class="num">{{ p.vistas }} <small>· {{ p.visitantes }}</small></td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<p class="st-vacio">Sin datos.</p>{% endif %}
+    </section>
+  </div>
+
+  <section class="st-panel" aria-labelledby="t-a11y">
+    <h2 id="t-a11y">Funciones de accesibilidad</h2>
+    <p class="sub">{{ accesibilidad.usaron }} visitantes ({{ accesibilidad.pct }}%) usaron al menos una. Ordenadas por cantidad de visitantes.</p>
+    {% if accesibilidad.funciones %}
+    <table class="st-barras"><thead><tr><th>Función</th><th><span class="sr-only">Proporción</span></th><th style="text-align:right">Visitantes · usos</th></tr></thead><tbody>
+      {% for f in accesibilidad.funciones %}<tr><td class="nombre">{{ f.nombre }}</td><td class="barra"><div><b style="width: {{ f.ancho|unlocalize }}%"></b></div></td>
+        <td class="num">{{ f.visitantes }} <small>· {{ f.veces }}</small></td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<p class="st-vacio">Sin datos.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

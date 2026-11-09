@@ -15,3 +15,4 @@
   <div class="prose">{{ p.descripcion|linebreaks }}</div>
 </article>
 {% endblock %}
+{% block scripts %}<script>MUC.registrar('presentacion', { objeto_id: {{ p.pk }} });</script>{% endblock %}

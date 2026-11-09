@@ -7,7 +7,7 @@
 {% block content %}
 {{ obras_data|json_script:"obras-data" }}
 <div class="vr-wrap">
-  <a-scene id="escena" embedded renderer="colorManagement: true; antialias: true"
+  <a-scene id="escena" embedded aria-label="Sala virtual en 3D. Usá los botones Anterior y Siguiente para recorrer las obras." renderer="colorManagement: true; antialias: true"
            cursor="rayOrigin: mouse" raycaster="objects: .clickable"
            vr-mode-ui="enabled: true" loading-screen="dotsColor: #b8893b; backgroundColor: #1b1714">
     <a-assets timeout="8000">
@@ -32,23 +32,36 @@
       <p class="eyebrow">Recorrido virtual</p>
       <h1>Sala del MUC</h1>
       <ul>
-        <li><strong>Computadora:</strong> arrastrá con el mouse para mirar y movete con <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> o las flechas.</li>
-        <li><strong>Celular:</strong> deslizá para mirar y usá los botones para avanzar.</li>
-        <li><strong>Visor VR:</strong> tocá el botón «VR» abajo a la derecha. Movete con el joystick.</li>
-        <li>Hacé clic sobre una obra para ver su ficha.</li>
+        <li><strong>Recorrido guiado:</strong> con los botones «Anterior» y «Siguiente» pasás de obra en obra sin necesidad de caminar. Funciona también con el teclado (<kbd>Tab</kbd> y <kbd>Enter</kbd>).</li>
+        <li><strong>Recorrido libre:</strong> arrastrá con el mouse o el dedo para mirar y movete con <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, las flechas o los botones en pantalla.</li>
+        <li><strong>Escuchar:</strong> al abrir la ficha de una obra podés escuchar su descripción.</li>
+        <li><strong>Control por voz:</strong> activá el micrófono y decí «siguiente», «leer», «avanzar», «izquierda», «parar»…</li>
+        <li><strong>Visor VR:</strong> tocá el botón «VR» abajo a la derecha.</li>
       </ul>
       <button class="btn btn-primary" id="entrar">Entrar a la sala</button>
+      <p class="vr-alt">¿Preferís no usar la sala 3D? <a href="{% url 'museo:galeria' %}">Ver las obras como lista</a>.</p>
     </div>
   </div>
 
-  <div class="vr-move" aria-label="Controles de movimiento">
+  <div class="vr-barra" role="group" aria-label="Recorrido guiado por las obras">
+    <button id="obra-anterior" type="button">◀ <span>Anterior</span></button>
+    <span class="vr-contador" id="contador" aria-hidden="true">Recorrido guiado</span>
+    <button id="obra-siguiente" type="button"><span>Siguiente</span> ▶</button>
+    <button id="btn-voz" type="button" aria-pressed="false">🎤 <span>Control por voz</span></button>
+  </div>
+  <p class="vr-estado" id="estado" role="status" aria-live="polite"></p>
+
+  <div class="vr-move" role="group" aria-label="Controles de movimiento (mantener presionado)">
+    <button data-giro="1" aria-label="Girar a la izquierda">⟲</button>
     <button data-dir="1" aria-label="Avanzar">▲</button>
-    <button data-dir="-1" aria-label="Retroceder">▼</button>
+    <button data-giro="-1" aria-label="Girar a la derecha">⟳</button>
+    <button data-dir="-1" aria-label="Retroceder" class="abajo">▼</button>
   </div>
 
-  <aside class="vr-ficha" id="ficha" hidden>
+  <aside class="vr-ficha" id="ficha" aria-label="Ficha de la obra" hidden>
     <button class="visor-close" aria-label="Cerrar ficha">×</button>
-    <h2></h2><p class="autor"></p><p class="info"></p><p class="desc"></p>
+    <h2 tabindex="-1"></h2><p class="autor"></p><p class="info"></p><p class="desc"></p>
+    <button class="btn btn-outline btn-leer" id="btn-leer" type="button"></button>
   </aside>
 </div>
 {% endblock %}
@@ -64,7 +77,8 @@
     n <= 11 ? [{ ancho: 14, largo: 18, alto: 4.4 }, { lado: 3, fondo: 3, frente: 2 }] :
               [{ ancho: 16, largo: 22, alto: 4.6 }, { lado: 4, fondo: 3, frente: 2 }];
   const X = SALA.ancho / 2, Z = SALA.largo / 2;
-  const mover = { dir: 0 };
+  const mover = { dir: 0, giro: 0 };
+  const paradas = [];   // lugar de cada obra en la sala, para el recorrido guiado
 
   // Recorrido de lugares en las paredes: izquierda (de adelante hacia el fondo), fondo,
   // derecha (del fondo hacia adelante) y pared de entrada a los costados de la puerta.
@@ -139,25 +153,111 @@
       const cuadro = el('a-entity', { position: `${l.x} 1.85 ${l.z}`, rotation: `0 ${l.rot} 0` }, sala);
       el('a-box', { width: w + 0.16, height: h + 0.16, depth: 0.06, position: '0 0 0.03', material: 'color: #2a1f16; roughness: 0.5; metalness: 0.2' }, cuadro);
       const img = el('a-plane', { width: w, height: h, position: '0 0 0.065', material: `shader: flat; src: #obra-${o.id}`, class: 'clickable', 'data-idx': k }, cuadro);
-      img.addEventListener('click', () => mostrarFicha(o));
+      paradas.push({ obra: o, x: l.x, z: l.z, rot: l.rot });
+      img.addEventListener('click', () => { actual = k; mostrarFicha(o); });
       img.addEventListener('mouseenter', () => img.setAttribute('scale', '1.02 1.02 1'));
       img.addEventListener('mouseleave', () => img.setAttribute('scale', '1 1 1'));
       el('a-plane', { width: 0.56, height: 0.28, position: `${w / 2 + 0.45} ${-h / 2 + 0.1} 0.012`, material: `shader: flat; src: url(${cartela(o)})`, class: 'clickable' }, cuadro)
-        .addEventListener('click', () => mostrarFicha(o));
+        .addEventListener('click', () => { actual = k; mostrarFicha(o); });
       // Luz cálida de acento sobre cada obra
       el('a-entity', { position: `0 ${h / 2 + 0.9} 1.2`, light: 'type: point; color: #ffe6c0; intensity: 0.35; distance: 3.2; decay: 2' }, cuadro);
     }
   }
 
   const ficha = document.getElementById('ficha');
+  const estado = document.getElementById('estado');
+  const contador = document.getElementById('contador');
+  let actual = -1;        // índice de la obra frente a la que está el visitante
+  let obraEnFicha = null;
+  let tEstado;
+  // Mensaje breve en pantalla, que además anuncian los lectores de pantalla (aria-live)
+  const anunciar = msg => { estado.textContent = msg; clearTimeout(tEstado); tEstado = setTimeout(() => { estado.textContent = ''; }, 6000); };
+
+  const reposoLectura = MUC.botonLectura(document.getElementById('btn-leer'), () => MUC.textoObra(obraEnFicha), () => ({ objeto_id: obraEnFicha.id }));
   function mostrarFicha(o) {
+    MUC.callar(); if (reposoLectura) reposoLectura();
+    if (obraEnFicha !== o) MUC.registrar('obra', { objeto_id: o.id, detalle: 'sala' });
+    obraEnFicha = o;
     ficha.querySelector('h2').textContent = o.titulo;
     ficha.querySelector('.autor').textContent = o.autor + (o.anio ? ', ' + o.anio : '');
     ficha.querySelector('.info').textContent = [o.tecnica, o.dimensiones].filter(Boolean).join(' · ');
     ficha.querySelector('.desc').textContent = o.descripcion;
     ficha.hidden = false;
+    if (actual >= 0) contador.textContent = `Obra ${actual + 1} de ${paradas.length}`;
   }
-  ficha.querySelector('button').onclick = () => { ficha.hidden = true; };
+  function cerrarFicha() { MUC.callar(); if (reposoLectura) reposoLectura(); ficha.hidden = true; }
+  function leerActual() {
+    if (!obraEnFicha || ficha.hidden) { anunciar('Primero elegí una obra: decí «siguiente» o tocá una obra.'); return; }
+    const b = document.getElementById('btn-leer');
+    if (b.getAttribute('aria-pressed') !== 'true') b.click();
+  }
+  ficha.querySelector('.visor-close').onclick = cerrarFicha;
+
+  // ---------- Recorrido guiado: lleva al visitante frente a cada obra ----------
+  const rigEl = document.getElementById('rig');
+  const camEl = document.getElementById('camara');
+  function irA(delta) {
+    if (!paradas.length) return;
+    if (actual < 0) actual = delta > 0 ? -1 : 0;
+    actual = (actual + delta + paradas.length) % paradas.length;
+    const p = paradas[actual], rad = p.rot * Math.PI / 180;
+    camEl.object3D.position.x = 0; camEl.object3D.position.z = 0;
+    // En pantallas verticales (celular) se aleja un poco y baja la vista: la obra queda arriba y la ficha abajo
+    const vertical = window.innerHeight > window.innerWidth;
+    const dist = vertical ? 3.2 : 2.6;
+    rigEl.object3D.position.set(p.x + Math.sin(rad) * dist, 0, p.z + Math.cos(rad) * dist);
+    const lc = camEl.components['look-controls'];
+    if (lc) { lc.yawObject.rotation.y = rad; lc.pitchObject.rotation.x = vertical ? -0.2 : 0; }
+    document.getElementById('intro').hidden = true;
+    mostrarFicha(p.obra);
+    anunciar(`Obra ${actual + 1} de ${paradas.length}: ${p.obra.titulo}, de ${p.obra.autor}.`);
+  }
+  const girar = grados => { const lc = camEl.components['look-controls']; if (lc) lc.yawObject.rotation.y += grados * Math.PI / 180; };
+  let tPaso;
+  const paso = dir => { mover.dir = dir; clearTimeout(tPaso); tPaso = setTimeout(() => { mover.dir = 0; }, 900); };
+  const frenar = () => { clearTimeout(tPaso); mover.dir = 0; mover.giro = 0; };
+  document.getElementById('obra-anterior').onclick = () => irA(-1);
+  document.getElementById('obra-siguiente').onclick = () => irA(1);
+
+  // ---------- Control por voz (Web Speech API: SpeechRecognition) ----------
+  const AYUDA_VOZ = 'Comandos: siguiente, anterior, leer, parar, avanzar, atrás, izquierda, derecha, cerrar.';
+  function ejecutarComando(frase) {
+    const f = frase.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const dice = (...palabras) => palabras.some(p => f.includes(p));
+    if (dice('parar', 'para ', 'alto', 'detener', 'detene', 'silencio', 'basta') || f.trim() === 'para') { frenar(); MUC.callar(); if (reposoLectura) reposoLectura(); anunciar('Detenido.'); return 'parar'; }
+    if (MUC.leyendo()) return null;   // mientras lee en voz alta solo escucha «parar» (evita que se oiga a sí mismo)
+    if (dice('siguiente', 'proxima')) { irA(1); return 'siguiente'; }
+    if (dice('anterior')) { irA(-1); return 'anterior'; }
+    if (dice('leer', 'lee', 'escuchar', 'descripcion', 'describ')) { leerActual(); return 'leer'; }
+    if (dice('avanzar', 'avanza', 'adelante')) { paso(1); anunciar('Avanzando.'); return 'avanzar'; }
+    if (dice('atras', 'retroced')) { paso(-1); anunciar('Retrocediendo.'); return 'atras'; }
+    if (dice('izquierda')) { girar(30); anunciar('Giro a la izquierda.'); return 'izquierda'; }
+    if (dice('derecha')) { girar(-30); anunciar('Giro a la derecha.'); return 'derecha'; }
+    if (dice('cerrar', 'cerra')) { cerrarFicha(); anunciar('Ficha cerrada.'); return 'cerrar'; }
+    if (dice('ayuda', 'comandos')) { anunciar(AYUDA_VOZ); return 'ayuda'; }
+    anunciar(`No entendí «${frase.trim()}». ${AYUDA_VOZ}`);
+    return null;
+  }
+  window.MUC.comandoDeVoz = ejecutarComando;   // permite probar los comandos sin micrófono
+
+  const btnVoz = document.getElementById('btn-voz');
+  const Reconocedor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let reconocedor = null, vozActiva = false;
+  const marcarVoz = v => { vozActiva = v; btnVoz.setAttribute('aria-pressed', v); btnVoz.classList.toggle('activo', v); };
+  btnVoz.onclick = () => {
+    if (!Reconocedor) { anunciar('Este navegador no permite el control por voz. Probá con Chrome, Edge o Safari.'); return; }
+    if (!window.isSecureContext) { anunciar('El control por voz necesita que el sitio se abra con HTTPS.'); return; }
+    if (vozActiva) { marcarVoz(false); reconocedor.stop(); anunciar('Control por voz desactivado.'); return; }
+    reconocedor = new Reconocedor();
+    reconocedor.lang = 'es-AR'; reconocedor.continuous = true; reconocedor.interimResults = false;
+    reconocedor.onresult = e => { const r = e.results[e.results.length - 1]; if (r.isFinal) ejecutarComando(r[0].transcript); };
+    reconocedor.onerror = e => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { marcarVoz(false); anunciar('No hay permiso para usar el micrófono.'); }
+    };
+    reconocedor.onend = () => { if (vozActiva) { try { reconocedor.start(); } catch (err) { /* ya iniciado */ } } };   // el navegador corta tras un silencio: se reanuda
+    try { reconocedor.start(); marcarVoz(true); anunciar('Te escucho. ' + AYUDA_VOZ); MUC.registrar('a11y_voz'); }
+    catch (err) { anunciar('No se pudo iniciar el micrófono.'); }
+  };
 
   // Movimiento con joystick (visor VR) y con los botones en pantalla (celular).
   AFRAME.registerComponent('mover-joystick', {
@@ -167,6 +267,8 @@
     tick(t, dt) {
       const cam = document.getElementById('camara').object3D;
       const rig = this.el.object3D;
+      const lc = mover.giro && dt && document.getElementById('camara').components['look-controls'];
+      if (lc) lc.yawObject.rotation.y += mover.giro * 1.3 * dt / 1000;
       if (mover.dir && dt) {
         const dirVista = new THREE.Vector3();
         cam.getWorldDirection(dirVista);
@@ -180,12 +282,30 @@
       cam.position.x += cx - px; cam.position.z += cz - pz;
     }
   });
+  // Botones de movimiento: se mantienen presionados con el dedo, el mouse o el teclado (Enter / Espacio)
   document.querySelectorAll('.vr-move button').forEach(b => {
-    const on = e => { e.preventDefault(); mover.dir = +b.dataset.dir; };
-    const off = () => { mover.dir = 0; };
+    const on = e => { e.preventDefault(); if (b.dataset.dir) mover.dir = +b.dataset.dir; else mover.giro = +b.dataset.giro; };
+    const off = () => { if (b.dataset.dir) mover.dir = 0; else mover.giro = 0; };
     b.addEventListener('pointerdown', on);
-    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, off));
+    ['pointerup', 'pointerleave', 'pointercancel', 'blur'].forEach(ev => b.addEventListener(ev, off));
+    b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') on(e); });
+    b.addEventListener('keyup', e => { if (e.key === 'Enter' || e.key === ' ') off(); });
   });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !ficha.hidden) cerrarFicha(); });
+
+  // Analítica: entrada a la sala y tiempo con la pestaña visible (se envía cada vez que se oculta o se cierra)
+  MUC.registrar('sala_entrada');
+  let visibleDesde = document.visibilityState === 'visible' ? Date.now() : null;
+  const enviarTiempo = () => {
+    if (visibleDesde === null) return;
+    const seg = Math.round((Date.now() - visibleDesde) / 1000);
+    visibleDesde = null;
+    if (seg >= 1) MUC.registrar('sala_tiempo', { valor: seg });
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') enviarTiempo(); else visibleDesde = Date.now();
+  });
+  window.addEventListener('pagehide', enviarTiempo);
 
   document.getElementById('entrar').onclick = () => { document.getElementById('intro').hidden = true; };
 

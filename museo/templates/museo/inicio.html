@@ -76,7 +76,7 @@
       i = (n + slides.length) % slides.length;
       slides[i].classList.add('is-active'); dots[i].classList.add('is-active');
     };
-    const start = () => { clearInterval(timer); timer = setInterval(() => go(i + 1), 6000); };
+    const start = () => { clearInterval(timer); timer = setInterval(() => { if (!MUC.sinAnimaciones()) go(i + 1); }, 6000); };
     dots.forEach((d, n) => d.addEventListener('click', () => { go(n); start(); }));
     start();
   })();
